@@ -1,0 +1,6 @@
+outs:
+- md5: 0bd65d28d01ff7afd9ad6f7729f491ca.dir
+  size: 2585
+  nfiles: 3
+  hash: md5
+  path: sentiment-analysis-gpt
