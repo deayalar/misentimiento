@@ -6,7 +6,7 @@ from pytorch_lightning import LightningModule
 from torch import nn
 from torchmetrics import MaxMetric
 from torchmetrics.classification.accuracy import Accuracy
-from transformers import AdamW, AutoModel, get_linear_schedule_with_warmup
+from transformers import AdamW, AutoModelForSequenceClassification, get_linear_schedule_with_warmup
 
 from src.utils import utils
 
@@ -45,7 +45,7 @@ class SequenceClassificationTransformer(LightningModule):
         self.save_hyperparameters(logger=False)
 
         # Load model and add classification head
-        self.model = AutoModel.from_pretrained(huggingface_model)
+        self.model = AutoModelForSequenceClassification.from_pretrained(huggingface_model)
         self.classifier = nn.Linear(self.model.config.hidden_size, num_labels)
 
         # Init classifier weights according to initialization rules of model
