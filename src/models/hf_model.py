@@ -61,9 +61,9 @@ class SequenceClassificationTransformer(LightningModule):
 
         # use separate metric instance for train, val and test step
         # to ensure a proper reduction over the epoch
-        self.train_acc = Accuracy()
-        self.val_acc = Accuracy()
-        self.test_acc = Accuracy()
+        self.train_acc = Accuracy(task="multiclass", num_classes=num_labels)
+        self.val_acc = Accuracy(task="multiclass", num_classes=num_labels)
+        self.test_acc = Accuracy(task="multiclass", num_classes=num_labels)
 
         # for logging best so far validation accuracy
         self.val_acc_best = MaxMetric()
@@ -72,6 +72,7 @@ class SequenceClassificationTransformer(LightningModule):
         params = inspect.signature(self.model.forward).parameters.values()
         params = [param.name for param in params if param.kind == param.POSITIONAL_OR_KEYWORD]
         self.forward_signature = params
+        self.validation_step_outputs = []
 
     def forward(self, batch: Dict[str, torch.tensor]):
         filtered_batch = {key: batch[key] for key in batch.keys() if key in self.forward_signature}
@@ -100,9 +101,9 @@ class SequenceClassificationTransformer(LightningModule):
         # remember to always return loss from `training_step()` or else backpropagation will fail!
         return {"loss": loss, "preds": preds, "targets": batch["labels"]}
 
-    def training_epoch_end(self, outputs: List[Any]):
+    def on_training_epoch_end(self, outputs: List[Any]):
         # `outputs` is a list of dicts returned from `training_step()`
-        pass
+        self.train_acc.reset()
 
     def validation_step(self, batch: Dict[str, torch.tensor], batch_idx: int):
         loss, preds = self.step(batch)
@@ -111,13 +112,15 @@ class SequenceClassificationTransformer(LightningModule):
         acc = self.val_acc(preds, batch["labels"])
         self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=False)
         self.log("val/acc", acc, on_step=False, on_epoch=True, prog_bar=False)
-
+        self.validation_step_outputs.append(loss)
         return {"loss": loss, "preds": preds, "targets": batch["labels"]}
 
-    def validation_epoch_end(self, outputs: List[Any]):
+    def on_validation_epoch_end(self):
         acc = self.val_acc.compute()  # get val accuracy from current epoch
         self.val_acc_best.update(acc)
         self.log("val/acc_best", self.val_acc_best.compute(), on_epoch=True, prog_bar=True)
+        self.val_acc.reset()
+        self.validation_step_outputs.clear()
 
     def test_step(self, batch: Dict[str, torch.tensor], batch_idx: int):
         loss, preds = self.step(batch)
@@ -129,17 +132,11 @@ class SequenceClassificationTransformer(LightningModule):
 
         return {"loss": loss, "preds": preds, "targets": batch["labels"]}
 
-    def test_epoch_end(self, outputs: List[Any]):
-        pass
-
-    def on_epoch_end(self):
-        # reset metrics at the end of every epoch!
-        self.train_acc.reset()
+    def on_test_epoch_end(self):
         self.test_acc.reset()
-        self.val_acc.reset()
 
-    @property
-    def total_training_steps(self) -> int:
+    #@property
+    def get_total_training_steps(self) -> int:
         """Total training steps inferred from datamodule and devices."""
         if isinstance(self.trainer.limit_train_batches, int) and self.trainer.limit_train_batches != 0:
             dataset_size = self.trainer.limit_train_batches
@@ -178,10 +175,13 @@ class SequenceClassificationTransformer(LightningModule):
         print(f"{self.hparams.learning_rate =}")
         optimizer = AdamW(optimizer_grouped_parameters, lr=self.hparams.learning_rate, eps=self.hparams.adam_epsilon)
 
-        scheduler = get_linear_schedule_with_warmup(
-            optimizer,
-            num_warmup_steps=self.hparams.warmup_steps,
-            num_training_steps=self.total_training_steps,
-        )
-        scheduler = {"scheduler": scheduler, "interval": "step", "frequency": 1}
-        return [optimizer], [scheduler]
+        #scheduler = get_linear_schedule_with_warmup(
+        #    optimizer,
+        #    num_warmup_steps=self.hparams.warmup_steps,
+        #    num_training_steps=self.get_total_training_steps(),
+        #)
+        #scheduler = {"scheduler": scheduler, "interval": "step", "frequency": 1}
+        #return [optimizer], [scheduler]
+        return {
+            "optimizer": optimizer,
+        }

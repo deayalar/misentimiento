@@ -4,9 +4,9 @@
 defaults:
   - _self_
   - trainer: default.yaml
-  - model: mnist_model.yaml
-  - datamodule: mnist_datamodule.yaml
-  - callbacks: default.yaml
+  - model: robertuito-base-uncased.yaml
+  - datamodule: hf_datamodule.yaml
+  - callbacks: none.yaml
   - logger: tensorboard.yaml
 
   - mode: default.yaml
@@ -28,7 +28,7 @@ defaults:
 work_dir: ${hydra:runtime.cwd}
 
 # path to folder with data
-data_dir: ${work_dir}/data/
+data_dir: ${work_dir}/data
 
 # pretty print config at the start of the run using Rich library
 print_config: True

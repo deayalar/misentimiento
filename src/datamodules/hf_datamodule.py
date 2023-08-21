@@ -51,7 +51,7 @@ class HFDataModule(LightningDataModule):
         self.tokenizer = None
         self.collator_fn = None
 
-        self.eval_key = "validation"
+        self.eval_key = "val"
         self.test_key = "test"
 
         if "mnli" in dataset_name:
@@ -95,7 +95,11 @@ class HFDataModule(LightningDataModule):
             self.collator_fn = DataCollatorWithPadding(tokenizer=self.tokenizer)
 
         if not self.dataset:
-            self.dataset = datasets.load_from_disk(self.dataset_path)
+            self.dataset = datasets.load_dataset("csv", data_files={
+                "train": str(Path(self.dataset_path, "train.csv")), 
+                self.test_key: str(Path(self.dataset_path, "test.csv")),
+                self.eval_key: str(Path(self.dataset_path, "val.csv"))
+            })
             keep_columns = [column for column in self.keep_columns if column in self.dataset['train'].column_names]
             self.dataset.set_format("torch", columns=keep_columns)
 
